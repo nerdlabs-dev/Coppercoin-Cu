@@ -1229,7 +1229,11 @@ void MapPort()
 // The first name is used as information source for addrman.
 // The second name should resolve to a list of seed addresses.
 static const char *strDNSSeed[][2] = {
-    {"labnet", "cunode.nerdlabs.dev"},
+    {"labnet", "cu1.nerdlabs.dev"},
+    {"labnet", "cu2.nerdlabs.dev"},
+    {"labnet", "cu3.nerdlabs.dev"},
+    {"labnet", "cu4.nerdlabs.dev"},
+    {"labnet", "001.nerdlabs.dev"},
 
 
 
