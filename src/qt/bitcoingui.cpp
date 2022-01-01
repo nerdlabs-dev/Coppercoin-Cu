@@ -341,10 +341,10 @@ void BitcoinGUI::createMenuBar()
 void BitcoinGUI::createToolBars()
 {
     QToolBar *toolbar = addToolBar(tr("Tabs toolbar"));
-    toolbar->setIconSize(QSize(32,32));
+    toolbar->setIconSize(QSize(48,48));
     toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
 
-    toolbar->resize(QSize(100, 100));
+    //toolbar->resize(QSize(100, 100));
 
     toolbar->addAction(overviewAction);
     toolbar->addAction(sendCoinsAction);
@@ -353,6 +353,7 @@ void BitcoinGUI::createToolBars()
     toolbar->addAction(addressBookAction);
 
     QToolBar *toolbar2 = addToolBar(tr("Actions toolbar"));
+    toolbar2->setIconSize(QSize(64,48));
     toolbar2->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     toolbar2->addAction(exportAction);
 }
@@ -365,7 +366,7 @@ void BitcoinGUI::setClientModel(ClientModel *clientModel)
         // Replace some strings and icons, when using the testnet
         if(clientModel->isTestNet())
         {
-            setWindowTitle(windowTitle() + QString(" ") + tr("[testnet]"));
+            setWindowTitle(windowTitle() + QString(" are you sure?? ") + tr("[testnet]"));
 #ifndef Q_OS_MAC
             qApp->setWindowIcon(QIcon(":icons/bitcoin_testnet"));
             setWindowIcon(QIcon(":icons/bitcoin_testnet"));
