@@ -127,6 +127,43 @@
                  </property>
                  <layout class="QGridLayout" name="gridLayout_8">
                   <item row="0" column="0">
+                   <widget class="QLabel" name="label10_16">
+                    <property name="minimumSize">
+                     <size>
+                      <width>64</width>
+                      <height>64</height>
+                     </size>
+                    </property>
+                    <property name="maximumSize">
+                     <size>
+                      <width>64</width>
+                      <height>64</height>
+                     </size>
+                    </property>
+                    <property name="toolTip">
+                     <string>discord nerdlabs.dev open support</string>
+                    </property>
+                    <property name="text">
+                     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;a href=&quot;https://discord.gg/e9zPJfy&quot;&gt;&lt;img src=&quot;:/images/res/images/discord.png&quot;/&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                    </property>
+                    <property name="scaledContents">
+                     <bool>false</bool>
+                    </property>
+                    <property name="alignment">
+                     <set>Qt::AlignCenter</set>
+                    </property>
+                    <property name="margin">
+                     <number>0</number>
+                    </property>
+                    <property name="indent">
+                     <number>0</number>
+                    </property>
+                    <property name="openExternalLinks">
+                     <bool>true</bool>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="0" column="3">
                    <widget class="QLabel" name="label10_17">
                     <property name="minimumSize">
                      <size>
@@ -164,7 +201,7 @@
                    </widget>
                   </item>
                   <item row="0" column="1">
-                   <widget class="QLabel" name="label10_16">
+                   <widget class="QLabel" name="label10_18">
                     <property name="minimumSize">
                      <size>
                       <width>64</width>
@@ -178,10 +215,10 @@
                      </size>
                     </property>
                     <property name="toolTip">
-                     <string>discord nerdlabs.dev open support</string>
+                     <string>More Info Page</string>
                     </property>
                     <property name="text">
-                     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;a href=&quot;https://discord.gg/e9zPJfy&quot;&gt;&lt;img src=&quot;:/images/res/images/discord.png&quot;/&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;a href=&quot;https://www.nerdlabs.dev/coins/coppercoin&quot;&gt;&lt;img src=&quot;:/images/res/images/site.png&quot;/&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                     </property>
                     <property name="scaledContents">
                      <bool>false</bool>

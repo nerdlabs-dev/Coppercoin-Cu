@@ -52,6 +52,7 @@
         <file>res/images/discord.png</file>
         <file>res/images/copper.png</file>
         <file>res/images/blocks.png</file>
+        <file>res/images/site.png</file>
     </qresource>
     <qresource prefix="/movies">
         <file alias="update_spinner">res/movies/update_spinner.mng</file>
