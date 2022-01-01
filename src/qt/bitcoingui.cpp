@@ -77,7 +77,8 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
     rpcConsole(0),
     nWeight(0)
 {
-    resize(875, 550);
+
+    setFixedSize(900, 600);
     setWindowTitle(tr("Cu-core 3.0"));
 
     //qApp->setStyleSheet("QMainWindow { background-image:url(:/images/res/images/background.png);}");
