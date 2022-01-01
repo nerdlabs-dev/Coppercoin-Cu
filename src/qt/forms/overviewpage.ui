@@ -21,7 +21,7 @@
      </property>
      <property name="sizeHint" stdset="0">
       <size>
-       <width>3</width>
+       <width>5</width>
        <height>20</height>
       </size>
      </property>
@@ -96,7 +96,7 @@
             <number>0</number>
            </property>
            <layout class="QGridLayout" name="gridLayout">
-            <item row="0" column="2">
+            <item row="0" column="1">
              <widget class="QFrame" name="frame_7">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
@@ -120,10 +120,13 @@
                   </size>
                  </property>
                  <property name="frameShape">
-                  <enum>QFrame::StyledPanel</enum>
+                  <enum>QFrame::NoFrame</enum>
                  </property>
                  <property name="frameShadow">
-                  <enum>QFrame::Raised</enum>
+                  <enum>QFrame::Plain</enum>
+                 </property>
+                 <property name="lineWidth">
+                  <number>0</number>
                  </property>
                  <layout class="QGridLayout" name="gridLayout_8">
                   <item row="0" column="0">
@@ -1051,7 +1054,7 @@
                     </property>
                     <property name="sizeHint" stdset="0">
                      <size>
-                      <width>17</width>
+                      <width>5</width>
                       <height>20</height>
                      </size>
                     </property>
@@ -3372,7 +3375,7 @@
                     </property>
                     <property name="sizeHint" stdset="0">
                      <size>
-                      <width>18</width>
+                      <width>5</width>
                       <height>20</height>
                      </size>
                     </property>
@@ -3795,19 +3798,6 @@
                </item>
               </layout>
              </widget>
-            </item>
-            <item row="0" column="1">
-             <spacer name="horizontalSpacer_9">
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
-              </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>40</width>
-                <height>20</height>
-               </size>
-              </property>
-             </spacer>
             </item>
            </layout>
           </widget>
