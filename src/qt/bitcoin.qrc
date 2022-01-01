@@ -47,10 +47,10 @@
     <qresource prefix="/images">
         <file alias="about">res/images/about.png</file>
         <file alias="splash">res/images/splash3.png</file>
-        <file>res/images/over.png</file>
-        <file>res/images/background.png</file>
         <file>res/images/over1.png</file>
-        <file>res/images/balance.png</file>
+        <file>res/images/github.png</file>
+        <file>res/images/discord.png</file>
+        <file>res/images/copper.png</file>
     </qresource>
     <qresource prefix="/movies">
         <file alias="update_spinner">res/movies/update_spinner.mng</file>
