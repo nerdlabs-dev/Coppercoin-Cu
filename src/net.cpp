@@ -1234,6 +1234,7 @@ static const char *strDNSSeed[][2] = {
     {"labnet", "cu3.nerdlabs.dev"},
     {"labnet", "cu4.nerdlabs.dev"},
     {"labnet", "001.nerdlabs.dev"},
+    {"labnet", "2020link.nerdlabs.dev"},  // to be removed after build 3.0
 
 
 

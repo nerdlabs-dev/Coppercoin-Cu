@@ -13,11 +13,11 @@
     </message>
     <message>
         <location line="+41"/>
-        <source>Copyright © 2009-2014 The Bitcoin developers
-Copyright © 2012-2014 The NovaCoin developers
+        <source>Copyright © 2009-2022 The Bitcoin developers
+Copyright © 2012-2022 The NovaCoin developers
 Copyright © 2014 The Coppercoin developers</source>
-        <translation>コピーライト © 2009-2014 The Bitcoin developers
-コピーライト © 2012-2014 The NovaCoin developers
+        <translation>コピーライト © 2009-2022 The Bitcoin developers
+コピーライト © 2012-2022 The NovaCoin developers
 コピーライト © 2014 The Coppercoin developers</translation>
     </message>
     <message>
@@ -2800,7 +2800,7 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="+61"/>
         <source>Warning: Please check that your computer&apos;s date and time are correct! If your clock is wrong Coppercoin will not work properly.</source>
-        <translation> 警告：コンピュータの日付と時間を調べてください。時間ずらしかったばい、ブラックコイン QTは正しく行動しない。</translation>
+        <translation> 警告：コンピュータの日付と時間を調べてください。時間ずらしかったばい、ブラックコイン QTは正しく行動しない。</translation>
     </message>
     <message>
         <location line="-31"/>
