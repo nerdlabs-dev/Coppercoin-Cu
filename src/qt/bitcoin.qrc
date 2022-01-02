@@ -43,6 +43,19 @@
         <file alias="debugwindow">res/icons/debugwindow.png</file>
         <file alias="staking_off">res/icons/staking_off.png</file>
         <file alias="staking_on">res/icons/staking_on.png</file>
+        <file>res/icons/novacoin-16.png</file>
+        <file>res/icons/novacoin.ico</file>
+        <file>res/icons/notsynced.png</file>
+        <file>res/icons/coppercoin-128.png</file>
+        <file>res/icons/coppercoin-48.png</file>
+        <file>res/icons/coppercoin-32.png</file>
+        <file>res/icons/coppercoin.png</file>
+        <file>res/icons/coppercoin.ico</file>
+        <file>res/icons/connect7_16.png</file>
+        <file>res/icons/connect6_16.png</file>
+        <file>res/icons/connect5_16.png</file>
+        <file>res/icons/bitcoin_testnet.png</file>
+        <file>res/icons/bitcoin.icns</file>
     </qresource>
     <qresource prefix="/images">
         <file alias="about">res/images/about.png</file>
