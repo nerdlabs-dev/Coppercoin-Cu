@@ -1,10 +1,10 @@
 obj/txdb-leveldb.o: txdb-leveldb.cpp \
- /home/lab/2022/Cu-coppercoin/src/leveldb/include/leveldb/env.h \
- /home/lab/2022/Cu-coppercoin/src/leveldb/include/leveldb/status.h \
- /home/lab/2022/Cu-coppercoin/src/leveldb/include/leveldb/slice.h \
- /home/lab/2022/Cu-coppercoin/src/leveldb/include/leveldb/cache.h \
- /home/lab/2022/Cu-coppercoin/src/leveldb/include/leveldb/filter_policy.h \
- /home/lab/2022/Cu-coppercoin/src/leveldb/helpers/memenv/memenv.h \
+ /home/lab/2022/Coppercoin-Cu/src/leveldb/include/leveldb/env.h \
+ /home/lab/2022/Coppercoin-Cu/src/leveldb/include/leveldb/status.h \
+ /home/lab/2022/Coppercoin-Cu/src/leveldb/include/leveldb/slice.h \
+ /home/lab/2022/Coppercoin-Cu/src/leveldb/include/leveldb/cache.h \
+ /home/lab/2022/Coppercoin-Cu/src/leveldb/include/leveldb/filter_policy.h \
+ /home/lab/2022/Coppercoin-Cu/src/leveldb/helpers/memenv/memenv.h \
  kernel.h main.h bignum.h serialize.h allocators.h version.h \
  clientversion.h uint256.h sync.h threadsafety.h net.h mruset.h netbase.h \
  compat.h protocol.h addrman.h util.h script.h keystore.h crypter.h key.h \
@@ -15,17 +15,17 @@ obj/txdb-leveldb.o: txdb-leveldb.cpp \
  zerocoin/SerialNumberSignatureOfKnowledge.h zerocoin/SpendMetaData.h \
  zerocoin/../uint256.h zerocoin/ParamGeneration.h checkpoints.h txdb.h \
  txdb-leveldb.h \
- /home/lab/2022/Cu-coppercoin/src/leveldb/include/leveldb/db.h \
- /home/lab/2022/Cu-coppercoin/src/leveldb/include/leveldb/iterator.h \
- /home/lab/2022/Cu-coppercoin/src/leveldb/include/leveldb/options.h \
- /home/lab/2022/Cu-coppercoin/src/leveldb/include/leveldb/write_batch.h
+ /home/lab/2022/Coppercoin-Cu/src/leveldb/include/leveldb/db.h \
+ /home/lab/2022/Coppercoin-Cu/src/leveldb/include/leveldb/iterator.h \
+ /home/lab/2022/Coppercoin-Cu/src/leveldb/include/leveldb/options.h \
+ /home/lab/2022/Coppercoin-Cu/src/leveldb/include/leveldb/write_batch.h
 txdb-leveldb.cpp :
- /home/lab/2022/Cu-coppercoin/src/leveldb/include/leveldb/env.h :
- /home/lab/2022/Cu-coppercoin/src/leveldb/include/leveldb/status.h :
- /home/lab/2022/Cu-coppercoin/src/leveldb/include/leveldb/slice.h :
- /home/lab/2022/Cu-coppercoin/src/leveldb/include/leveldb/cache.h :
- /home/lab/2022/Cu-coppercoin/src/leveldb/include/leveldb/filter_policy.h :
- /home/lab/2022/Cu-coppercoin/src/leveldb/helpers/memenv/memenv.h :
+ /home/lab/2022/Coppercoin-Cu/src/leveldb/include/leveldb/env.h :
+ /home/lab/2022/Coppercoin-Cu/src/leveldb/include/leveldb/status.h :
+ /home/lab/2022/Coppercoin-Cu/src/leveldb/include/leveldb/slice.h :
+ /home/lab/2022/Coppercoin-Cu/src/leveldb/include/leveldb/cache.h :
+ /home/lab/2022/Coppercoin-Cu/src/leveldb/include/leveldb/filter_policy.h :
+ /home/lab/2022/Coppercoin-Cu/src/leveldb/helpers/memenv/memenv.h :
  kernel.h main.h bignum.h serialize.h allocators.h version.h :
  clientversion.h uint256.h sync.h threadsafety.h net.h mruset.h netbase.h :
  compat.h protocol.h addrman.h util.h script.h keystore.h crypter.h key.h :
@@ -36,7 +36,7 @@ txdb-leveldb.cpp :
  zerocoin/SerialNumberSignatureOfKnowledge.h zerocoin/SpendMetaData.h :
  zerocoin/../uint256.h zerocoin/ParamGeneration.h checkpoints.h txdb.h :
  txdb-leveldb.h :
- /home/lab/2022/Cu-coppercoin/src/leveldb/include/leveldb/db.h :
- /home/lab/2022/Cu-coppercoin/src/leveldb/include/leveldb/iterator.h :
- /home/lab/2022/Cu-coppercoin/src/leveldb/include/leveldb/options.h :
- /home/lab/2022/Cu-coppercoin/src/leveldb/include/leveldb/write_batch.h :
+ /home/lab/2022/Coppercoin-Cu/src/leveldb/include/leveldb/db.h :
+ /home/lab/2022/Coppercoin-Cu/src/leveldb/include/leveldb/iterator.h :
+ /home/lab/2022/Coppercoin-Cu/src/leveldb/include/leveldb/options.h :
+ /home/lab/2022/Coppercoin-Cu/src/leveldb/include/leveldb/write_batch.h :

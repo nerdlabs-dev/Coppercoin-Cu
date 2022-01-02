@@ -1,4 +1,4 @@
 obj/version.o: version.cpp version.h clientversion.h \
- /home/lab/2022/Cu-coppercoin/src/obj/build.h
+ /home/lab/2022/Coppercoin-Cu/src/obj/build.h
 version.cpp version.h clientversion.h :
- /home/lab/2022/Cu-coppercoin/src/obj/build.h :
+ /home/lab/2022/Coppercoin-Cu/src/obj/build.h :
