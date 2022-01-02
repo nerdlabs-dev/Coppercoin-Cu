@@ -51,9 +51,9 @@
         <file>res/icons/coppercoin-32.png</file>
         <file>res/icons/coppercoin.png</file>
         <file>res/icons/coppercoin.ico</file>
-        <file>res/icons/connect7_16.png</file>
-        <file>res/icons/connect6_16.png</file>
-        <file>res/icons/connect5_16.png</file>
+        <file alias="connect_7">res/icons/connect7_16.png</file>
+        <file alias="connect_6">res/icons/connect6_16.png</file>
+        <file alias="connect_5">res/icons/connect5_16.png</file>
         <file>res/icons/bitcoin_testnet.png</file>
         <file>res/icons/bitcoin.icns</file>
     </qresource>
