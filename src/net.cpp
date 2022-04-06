@@ -361,7 +361,7 @@ bool GetMyExternalIP(CNetAddr& ipRet)
         //  <?php echo $_SERVER["REMOTE_ADDR"]; ?>
         if (nHost == 1)
         {
-            addrConnect = CService("216.146.43.70",80); // checkip.dyndns.org
+            addrConnect = CService("132.226.8.169",80); // checkip.dyndns.org
 
             if (nLookup == 1)
             {
@@ -380,7 +380,7 @@ bool GetMyExternalIP(CNetAddr& ipRet)
         }
         else if (nHost == 2)
         {
-            addrConnect = CService("74.208.43.192", 80); // www.showmyip.com
+            addrConnect = CService("104.21.56.138", 80); // www.showmyip.com
 
             if (nLookup == 1)
             {
@@ -1229,12 +1229,16 @@ void MapPort()
 // The first name is used as information source for addrman.
 // The second name should resolve to a list of seed addresses.
 static const char *strDNSSeed[][2] = {
-    {"labnet", "cu1.nerdlabs.dev"},
-    {"labnet", "cu2.nerdlabs.dev"},
-    {"labnet", "cu3.nerdlabs.dev"},
-    {"labnet", "cu4.nerdlabs.dev"},
-    {"labnet", "001.nerdlabs.dev"},
-    {"labnet", "2020link.nerdlabs.dev"},  // to be removed after build 3.0
+    {"labnet", "cu0.coppercoin.dev"},
+    {"labnet", "cu1.coppercoin.dev"},
+    {"labnet", "cu2.coppercoin.dev"},
+    {"labnet", "cu3.coppercoin.dev"},
+    {"labnet", "cu4.coppercoin.dev"},
+    {"labnet", "cu5.coppercoin.dev"},
+    {"labnet", "cu6.coppercoin.dev"},
+    {"labnet", "cu7.coppercoin.dev"},
+    {"labnet", "cu8.coppercoin.dev"},
+    {"labnet", "cu9.coppercoin.dev"},
 
 
 
