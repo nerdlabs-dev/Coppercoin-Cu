@@ -1,0 +1,109 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  linux:
+    name: Linux (daemon + Qt)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config \
+            libboost-filesystem-dev libboost-program-options-dev libboost-thread-dev libboost-chrono-dev \
+            libboost-iostreams-dev libssl-dev libdb++-dev libminiupnpc-dev libqrencode-dev zlib1g-dev \
+            qtbase5-dev qttools5-dev-tools qtbase5-dev-tools
+
+      - name: Build coppercoind
+        run: |
+          cd src
+          make -f makefile.unix -j"$(nproc)" 2>&1 | tee ../build-daemon.log
+          test "${PIPESTATUS[0]}" -eq 0
+          strip coppercoind
+
+      - name: Build coppercoin-qt
+        run: |
+          qmake USE_QRCODE=1 USE_UPNP=1 USE_DBUS=1 Coppercoin-qt.pro
+          make -j"$(nproc)" 2>&1 | tee build-qt.log
+          test "${PIPESTATUS[0]}" -eq 0
+          strip coppercoin-qt
+
+      - name: Report compiler errors
+        if: failure()
+        run: |
+          cat build-*.log 2>/dev/null | grep -E "error|Error [0-9]|undefined reference" | grep -v "^make" | head -40 | \
+            while IFS= read -r l; do echo "::error::${l//%/%25}"; done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coppercoin-linux-x86_64
+          path: |
+            src/coppercoind
+            coppercoin-qt
+
+  windows:
+    name: Windows (Qt)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            make
+            zip
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-boost
+            mingw-w64-x86_64-openssl
+            mingw-w64-x86_64-db
+            mingw-w64-x86_64-miniupnpc
+            mingw-w64-x86_64-qrencode
+            mingw-w64-x86_64-qt5-base
+            mingw-w64-x86_64-qt5-tools
+
+      - name: Show library names
+        run: |
+          ls /mingw64/lib | grep -E "boost_(thread|filesystem|program_options|chrono)|db_cxx|miniupnpc" || true
+          ls /mingw64/bin | grep -i qmake || true
+
+      - name: Build coppercoin-qt
+        run: |
+          QMAKE=$(command -v qmake-qt5 || command -v qmake)
+          "$QMAKE" -spec win32-g++ "CONFIG+=release" \
+            USE_QRCODE=1 USE_UPNP=1 \
+            BOOST_LIB_SUFFIX=-mt BOOST_THREAD_LIB_SUFFIX=-mt \
+            Coppercoin-qt.pro
+          mingw32-make -j"$(nproc)" -f Makefile.Release 2>&1 | tee build-qt.log
+          test "${PIPESTATUS[0]}" -eq 0
+
+      - name: Report compiler errors
+        if: failure()
+        run: |
+          cat build-*.log 2>/dev/null | grep -E "error|Error [0-9]|undefined reference" | grep -v "^make" | head -40 | \
+            while IFS= read -r l; do echo "::error::${l//%/%25}"; done
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp release/coppercoin-qt.exe dist/
+          WINDEPLOYQT=$(command -v windeployqt-qt5 || command -v windeployqt)
+          "$WINDEPLOYQT" --release --no-translations --no-compiler-runtime dist/coppercoin-qt.exe
+          # copy the MinGW DLLs the exe depends on
+          ldd dist/coppercoin-qt.exe | grep -i "/mingw64/" | awk '{print $3}' | sort -u | xargs -r -I{} cp -n {} dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coppercoin-qt-windows-x86_64
+          path: dist/

@@ -24,3 +24,26 @@ qrc_*.cpp
 build
 
 !src/leveldb/Makefile
+
+# build output
+src/obj/*.o
+src/obj/*.P
+src/obj/*.d
+src/obj/build.h
+src/obj/zerocoin/
+src/obj-test/*.o
+src/obj-test/*.P
+src/leveldb/libleveldb.a
+src/leveldb/libmemenv.a
+src/leveldb/**/*.o
+build/
+release/
+debug/
+Makefile
+Makefile.Debug
+Makefile.Release
+object_script.*
+.qmake.stash
+src/qt/locale/*.qm
+coppercoin-qt
+coppercoin-qt.exe

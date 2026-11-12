@@ -1,3 +1,7 @@
+#include <QtGlobal>
+#if QT_VERSION < 0x050000
+#define setSectionResizeMode setResizeMode
+#endif
 #include "transactionview.h"
 
 #include "transactionfilterproxy.h"
@@ -182,7 +186,7 @@ void TransactionView::setModel(WalletModel *model)
                 TransactionTableModel::Date, 120);
         transactionView->horizontalHeader()->resizeSection(
                 TransactionTableModel::Type, 120);
-        transactionView->horizontalHeader()->setResizeMode(
+        transactionView->horizontalHeader()->setSectionResizeMode(
                 TransactionTableModel::ToAddress, QHeaderView::Stretch);
         transactionView->horizontalHeader()->resizeSection(
                 TransactionTableModel::Amount, 100);
