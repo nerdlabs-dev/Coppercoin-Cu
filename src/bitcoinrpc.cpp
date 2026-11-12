@@ -547,7 +547,7 @@ bool ClientAllowed(const boost::asio::ip::address& address)
      || address == asio::ip::address_v6::loopback()
      || (address.is_v4()
          // Check whether IPv4 addresses match 127.0.0.0/8 (loopback subnet)
-      && (address.to_v4().to_ulong() & 0xff000000) == 0x7f000000))
+      && (address.to_v4().to_uint() & 0xff000000) == 0x7f000000))
         return true;
 
     const string strAddress = address.to_string();
@@ -834,7 +834,7 @@ void ThreadRPCServer2(void* parg)
         acceptor->set_option(boost::asio::ip::v6_only(loopback), v6_only_error);
 
         acceptor->bind(endpoint);
-        acceptor->listen(socket_base::max_connections);
+        acceptor->listen(socket_base::max_listen_connections);
 
         RPCListen(acceptor, context, fUseSSL);
         // Cancel outstanding listen-requests for this acceptor when shutting down
@@ -860,7 +860,7 @@ void ThreadRPCServer2(void* parg)
             acceptor->open(endpoint.protocol());
             acceptor->set_option(boost::asio::ip::tcp::acceptor::reuse_address(true));
             acceptor->bind(endpoint);
-            acceptor->listen(socket_base::max_connections);
+            acceptor->listen(socket_base::max_listen_connections);
 
             RPCListen(acceptor, context, fUseSSL);
             // Cancel outstanding listen-requests for this acceptor when shutting down

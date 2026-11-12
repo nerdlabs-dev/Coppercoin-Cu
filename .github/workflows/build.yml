@@ -81,7 +81,9 @@ jobs:
       - name: Build coppercoin-qt
         run: |
           QMAKE=$(command -v qmake-qt5 || command -v qmake)
+          LRELEASE=$(command -v lrelease-qt5 || command -v lrelease)
           "$QMAKE" -spec win32-g++ "CONFIG+=release" \
+            QMAKE_LRELEASE="$LRELEASE" \
             USE_QRCODE=1 USE_UPNP=1 \
             BOOST_LIB_SUFFIX=-mt BOOST_THREAD_LIB_SUFFIX=-mt \
             Coppercoin-qt.pro
