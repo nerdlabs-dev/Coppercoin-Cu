@@ -101,12 +101,13 @@ jobs:
 
       - name: Package
         run: |
+          set -x
           mkdir -p dist
-          cp release/coppercoin-qt.exe dist/
+          cp release/coppercoin-qt.exe dist/ || cp coppercoin-qt.exe dist/
           WINDEPLOYQT=$(command -v windeployqt-qt5 || command -v windeployqt)
-          "$WINDEPLOYQT" --release --no-translations --no-compiler-runtime dist/coppercoin-qt.exe
+          "$WINDEPLOYQT" --release --no-translations --no-compiler-runtime dist/coppercoin-qt.exe || echo "::warning::windeployqt failed"
           # copy the MinGW DLLs the exe depends on
-          ldd dist/coppercoin-qt.exe | grep -i "/ucrt64/" | awk '{print $3}' | sort -u | xargs -r -I{} cp -n {} dist/
+          ldd dist/coppercoin-qt.exe | grep -i "/ucrt64/" | awk '{print $3}' | sort -u | while read -r f; do [ -e "dist/$(basename "$f")" ] || cp "$f" dist/; done
 
       - uses: actions/upload-artifact@v5
         with:
