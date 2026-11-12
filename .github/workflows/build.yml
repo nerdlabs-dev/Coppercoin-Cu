@@ -38,8 +38,9 @@ jobs:
       - name: Report compiler errors
         if: failure()
         run: |
-          cat build-*.log 2>/dev/null | grep -E ": (fatal )?error:|undefined reference|No such file|Error [0-9]" | head -60 | \
-            while IFS= read -r l; do echo "::error::${l//%/%25}"; done
+          { cat build-*.log 2>/dev/null | grep -E ": (fatal )?error:|undefined reference|No such file|cannot find|Error [0-9]" | head -50; \
+            tail -n 15 qmake.log build-qt.log build-daemon.log 2>/dev/null; } | \
+            while IFS= read -r l; do echo "::error::${l//%/%25}"; done || true
 
       - uses: actions/upload-artifact@v5
         with:
@@ -86,15 +87,17 @@ jobs:
             QMAKE_LRELEASE="$LRELEASE" \
             USE_QRCODE=1 USE_UPNP=1 \
             BOOST_LIB_SUFFIX=-mt BOOST_THREAD_LIB_SUFFIX=-mt \
-            Coppercoin-qt.pro
+            Coppercoin-qt.pro 2>&1 | tee qmake.log
+          test "${PIPESTATUS[0]}" -eq 0
           mingw32-make -k -j"$(nproc)" -f Makefile.Release 2>&1 | tee build-qt.log
           test "${PIPESTATUS[0]}" -eq 0
 
       - name: Report compiler errors
         if: failure()
         run: |
-          cat build-*.log 2>/dev/null | grep -E ": (fatal )?error:|undefined reference|No such file|Error [0-9]" | head -60 | \
-            while IFS= read -r l; do echo "::error::${l//%/%25}"; done
+          { cat build-*.log 2>/dev/null | grep -E ": (fatal )?error:|undefined reference|No such file|cannot find|Error [0-9]" | head -50; \
+            tail -n 15 qmake.log build-qt.log build-daemon.log 2>/dev/null; } | \
+            while IFS= read -r l; do echo "::error::${l//%/%25}"; done || true
 
       - name: Package
         run: |
