@@ -10,7 +10,7 @@ jobs:
     name: Linux (daemon + Qt)
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install dependencies
         run: |
@@ -41,7 +41,7 @@ jobs:
           cat build-*.log 2>/dev/null | grep -E "error|Error [0-9]|undefined reference" | grep -v "^make" | head -40 | \
             while IFS= read -r l; do echo "::error::${l//%/%25}"; done
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: coppercoin-linux-x86_64
           path: |
@@ -55,28 +55,28 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW64
+          msystem: UCRT64
           update: true
           install: >-
             make
             zip
-            mingw-w64-x86_64-toolchain
-            mingw-w64-x86_64-boost
-            mingw-w64-x86_64-openssl
-            mingw-w64-x86_64-db
-            mingw-w64-x86_64-miniupnpc
-            mingw-w64-x86_64-qrencode
-            mingw-w64-x86_64-qt5-base
-            mingw-w64-x86_64-qt5-tools
+            mingw-w64-ucrt-x86_64-toolchain
+            mingw-w64-ucrt-x86_64-boost
+            mingw-w64-ucrt-x86_64-openssl
+            mingw-w64-ucrt-x86_64-db
+            mingw-w64-ucrt-x86_64-miniupnpc
+            mingw-w64-ucrt-x86_64-qrencode
+            mingw-w64-ucrt-x86_64-qt5-base
+            mingw-w64-ucrt-x86_64-qt5-tools
 
       - name: Show library names
         run: |
-          ls /mingw64/lib | grep -E "boost_(thread|filesystem|program_options|chrono)|db_cxx|miniupnpc" || true
-          ls /mingw64/bin | grep -i qmake || true
+          ls /ucrt64/lib | grep -E "boost_(thread|filesystem|program_options|chrono)|db_cxx|miniupnpc" || true
+          ls /ucrt64/bin | grep -i qmake || true
 
       - name: Build coppercoin-qt
         run: |
@@ -101,9 +101,9 @@ jobs:
           WINDEPLOYQT=$(command -v windeployqt-qt5 || command -v windeployqt)
           "$WINDEPLOYQT" --release --no-translations --no-compiler-runtime dist/coppercoin-qt.exe
           # copy the MinGW DLLs the exe depends on
-          ldd dist/coppercoin-qt.exe | grep -i "/mingw64/" | awk '{print $3}' | sort -u | xargs -r -I{} cp -n {} dist/
+          ldd dist/coppercoin-qt.exe | grep -i "/ucrt64/" | awk '{print $3}' | sort -u | xargs -r -I{} cp -n {} dist/
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: coppercoin-qt-windows-x86_64
           path: dist/
