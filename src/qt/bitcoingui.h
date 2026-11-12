@@ -5,6 +5,8 @@
 #include <QSystemTrayIcon>
 
 #include <stdint.h>
+#include <deque>
+#include <utility>
 
 class TransactionTableModel;
 class ClientModel;
@@ -95,6 +97,8 @@ private:
     QAction *lockWalletAction;
     QAction *aboutQtAction;
     QAction *openRPCConsoleAction;
+    QAction *openPeersAction;
+    QAction *openTrafficAction;
 
     QSystemTrayIcon *trayIcon;
     Notificator *notificator;
@@ -138,7 +142,18 @@ public slots:
     void askFee(qint64 nFeeRequired, bool *payFee);
     void handleURI(QString strURI);
 
+private:
+    /** Time-left estimate while syncing: (ms timestamp, height) samples from
+        the last few minutes, the tallest peer's height and the text shown */
+    QTimer *syncEstimateTimer;
+    std::deque<std::pair<qint64, int> > syncSamples;
+    int syncTargetHeight;
+    QString syncEstimateText;
+    QString syncRateText;
+
 private slots:
+    /** Recompute the time-left estimate (every few seconds, cheap) */
+    void updateSyncEstimate();
     /** Switch to overview (home) page */
     void gotoOverviewPage();
     /** Switch to history (transactions) page */

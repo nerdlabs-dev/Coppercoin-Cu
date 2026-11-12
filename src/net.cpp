@@ -54,6 +54,9 @@ static map<CNetAddr, LocalServiceInfo> mapLocalHost;
 static bool vfReachable[NET_MAX] = {};
 static bool vfLimited[NET_MAX] = {};
 static CNode* pnodeLocalHost = NULL;
+static CNode* pnodeSync = NULL;     // the peer we download the chain from
+vector<std::string> vAddedNodes;
+CCriticalSection cs_vAddedNodes;
 CAddress addrSeenByPeer(CService("0.0.0.0", 0), nLocalServices);
 uint64_t nLocalHostNonce = 0;
 boost::array<int, THREAD_MAX> vnThreadsRunning;
@@ -93,6 +96,7 @@ void CNode::PushGetBlocks(CBlockIndex* pindexBegin, uint256 hashEnd)
         return;
     pindexLastGetBlocksBegin = pindexBegin;
     hashLastGetBlocksEnd = hashEnd;
+    nLastGetBlocksTime = GetTime();
 
     PushMessage("getblocks", CBlockLocator(pindexBegin), hashEnd);
 }
@@ -270,6 +274,73 @@ bool IsLimited(const CNetAddr &addr)
 }
 
 /** vote for a local address */
+// Learning our public address from our peers
+//
+// Every peer tells us, in its version message, the address it sees us at.
+// Behind a home router no local interface has the public address, and the
+// old whatismyip-style websites are gone, so without UPnP or -externalip we
+// would never know it and rarely advertise ourselves.
+//
+// One peer could lie, so an address is only taken once outbound peers in at
+// least PEER_LOCAL_MIN_VOTES different network groups (/16s) report it. It is
+// stored with our listen port, not the outgoing port the peer saw. If our
+// public IP changes later, the new one replaces it the same way.
+static const unsigned int PEER_LOCAL_MIN_VOTES = 2;
+static const unsigned int PEER_LOCAL_MAX_CANDIDATES = 64;
+static CCriticalSection cs_peerLocal;
+static map<CNetAddr, set<vector<unsigned char> > > mapPeerLocalVotes;
+static CNetAddr addrPeerLocal;          // address currently learned from peers
+static bool fPeerLocalOwned = false;    // true if we added it to mapLocalHost
+
+bool LearnLocalFromPeer(CNode *pnode)
+{
+    if (!fDiscover || pnode->fInbound)
+        return false;
+    if (!pnode->addr.IsRoutable() || !pnode->addrLocal.IsRoutable() || IsLimited(pnode->addrLocal))
+        return false;
+
+    CNetAddr ip(pnode->addrLocal);
+    CNetAddr addrOld;
+    bool fRemoveOld = false;
+    {
+        LOCK(cs_peerLocal);
+        if (addrPeerLocal.IsValid() && ip == addrPeerLocal)
+            return false;
+        if (mapPeerLocalVotes.size() >= PEER_LOCAL_MAX_CANDIDATES && !mapPeerLocalVotes.count(ip))
+            mapPeerLocalVotes.clear();
+        set<vector<unsigned char> >& setVoters = mapPeerLocalVotes[ip];
+        setVoters.insert(pnode->addr.GetGroup());
+        if (setVoters.size() < PEER_LOCAL_MIN_VOTES)
+            return false;
+
+        addrOld = addrPeerLocal;
+        fRemoveOld = fPeerLocalOwned && addrOld.IsValid();
+        addrPeerLocal = ip;
+        mapPeerLocalVotes.clear();
+    }
+
+    CService addrNew(ip, GetListenPort());
+    bool fOwned;
+    {
+        LOCK(cs_mapLocalHost);
+        if (fRemoveOld)
+            mapLocalHost.erase(addrOld);
+        // Leave an address that UPnP, -externalip or an interface already
+        // gave us alone; only one we add here is ours to remove later
+        fOwned = mapLocalHost.count(ip) == 0;
+    }
+    {
+        LOCK(cs_peerLocal);
+        fPeerLocalOwned = fOwned;
+    }
+    if (fRemoveOld)
+        printf("Public address changed from %s to %s (reported by peers)\n", addrOld.ToString().c_str(), addrNew.ToString().c_str());
+    else
+        printf("Public address %s learned from peers\n", addrNew.ToString().c_str());
+    AddLocal(addrNew, LOCAL_PEER); // also advertises it to all peers right away
+    return true;
+}
+
 bool SeenLocal(const CService& addr)
 {
     {
@@ -525,6 +596,8 @@ CNode* ConnectNode(CAddress addrConnect, const char *pszDest)
 void CNode::CloseSocketDisconnect()
 {
     fDisconnect = true;
+    if (this == pnodeSync)
+        pnodeSync = NULL;
     if (hSocket != INVALID_SOCKET)
     {
         printf("disconnecting node %s\n", addrName.c_str());
@@ -605,6 +678,34 @@ bool CNode::Misbehaving(int howmuch)
 
 #undef X
 #define X(name) stats.name = name
+CCriticalSection CNode::cs_totalBytes;
+uint64_t CNode::nTotalBytesRecv = 0;
+uint64_t CNode::nTotalBytesSent = 0;
+
+void CNode::RecordBytesRecv(uint64_t bytes)
+{
+    LOCK(cs_totalBytes);
+    nTotalBytesRecv += bytes;
+}
+
+void CNode::RecordBytesSent(uint64_t bytes)
+{
+    LOCK(cs_totalBytes);
+    nTotalBytesSent += bytes;
+}
+
+uint64_t CNode::GetTotalBytesRecv()
+{
+    LOCK(cs_totalBytes);
+    return nTotalBytesRecv;
+}
+
+uint64_t CNode::GetTotalBytesSent()
+{
+    LOCK(cs_totalBytes);
+    return nTotalBytesSent;
+}
+
 void CNode::copyStats(CNodeStats &stats)
 {
     X(nServices);
@@ -616,7 +717,22 @@ void CNode::copyStats(CNodeStats &stats)
     X(strSubVer);
     X(fInbound);
     X(nStartingHeight);
+    X(nKnownHeight);
+    X(nSendBytes);
+    X(nRecvBytes);
     X(nMisbehavior);
+    stats.fSyncNode = (this == pnodeSync);
+
+    // A ping that is taking unusually long shows up as pingwait right away,
+    // since pingtime only updates when the ping completes
+    int64_t nPingUsecWait = 0;
+    if ((0 != nPingNonceSent) && (0 != nPingUsecStart))
+        nPingUsecWait = GetTimeMicros() - nPingUsecStart;
+    stats.dPingTime = (((double)nPingUsecTime) / 1e6);
+    stats.dPingWait = (((double)nPingUsecWait) / 1e6);
+
+    // Leave string empty if addrLocal invalid (not filled in yet)
+    stats.addrLocal = addrLocal.IsValid() ? addrLocal.ToString() : "";
 }
 #undef X
 
@@ -715,6 +831,8 @@ void SocketSendData(CNode *pnode)
         int nBytes = send(pnode->hSocket, &data[pnode->nSendOffset], data.size() - pnode->nSendOffset, MSG_NOSIGNAL | MSG_DONTWAIT);
         if (nBytes > 0) {
             pnode->nLastSend = GetTime();
+            pnode->nSendBytes += nBytes;
+            CNode::RecordBytesSent(nBytes);
             pnode->nSendOffset += nBytes;
             if (pnode->nSendOffset == data.size()) {
                 pnode->nSendOffset = 0;
@@ -997,6 +1115,8 @@ void ThreadSocketHandler2(void* parg)
                             if (!pnode->ReceiveMsgBytes(pchBuf, nBytes))
                                 pnode->CloseSocketDisconnect();
                             pnode->nLastRecv = GetTime();
+                            pnode->nRecvBytes += nBytes;
+                            CNode::RecordBytesRecv(nBytes);
                         }
                         else if (nBytes == 0)
                         {
@@ -1574,70 +1694,81 @@ void ThreadOpenAddedConnections2(void* parg)
 {
     printf("ThreadOpenAddedConnections started\n");
 
-    if (mapArgs.count("-addnode") == 0)
-        return;
+    {
+        LOCK(cs_vAddedNodes);
+        vAddedNodes = mapMultiArgs["-addnode"];
+    }
 
-    if (HaveNameProxy()) {
-        while(!fShutdown) {
-            BOOST_FOREACH(string& strAddNode, mapMultiArgs["-addnode"]) {
+    // Keeps running even with no -addnode, so nodes added later with the
+    // addnode RPC get connected too
+    for (unsigned int i = 0; !fShutdown; i++)
+    {
+        list<string> lAddresses(0);
+        {
+            LOCK(cs_vAddedNodes);
+            BOOST_FOREACH(string& strAddNode, vAddedNodes)
+                lAddresses.push_back(strAddNode);
+        }
+
+        if (HaveNameProxy()) {
+            BOOST_FOREACH(string& strAddNode, lAddresses) {
                 CAddress addr;
                 CSemaphoreGrant grant(*semOutbound);
                 OpenNetworkConnection(addr, &grant, strAddNode.c_str());
                 MilliSleep(500);
+                if (fShutdown)
+                    return;
             }
-            vnThreadsRunning[THREAD_ADDEDCONNECTIONS]--;
-            MilliSleep(120000); // Retry every 2 minutes
-            vnThreadsRunning[THREAD_ADDEDCONNECTIONS]++;
-        }
-        return;
-    }
-
-    vector<vector<CService> > vservAddressesToAdd(0);
-    BOOST_FOREACH(string& strAddNode, mapMultiArgs["-addnode"])
-    {
-        vector<CService> vservNode(0);
-        if(Lookup(strAddNode.c_str(), vservNode, GetDefaultPort(), fNameLookup, 0))
-        {
-            vservAddressesToAdd.push_back(vservNode);
+        } else {
+            list<vector<CService> > lservAddressesToAdd(0);
+            BOOST_FOREACH(string& strAddNode, lAddresses)
             {
-                LOCK(cs_setservAddNodeAddresses);
-                BOOST_FOREACH(CService& serv, vservNode)
-                    setservAddNodeAddresses.insert(serv);
+                vector<CService> vservNode(0);
+                if (Lookup(strAddNode.c_str(), vservNode, GetDefaultPort(), fNameLookup, 0))
+                {
+                    lservAddressesToAdd.push_back(vservNode);
+                    LOCK(cs_setservAddNodeAddresses);
+                    BOOST_FOREACH(CService& serv, vservNode)
+                        setservAddNodeAddresses.insert(serv);
+                }
+            }
+
+            // Attempt to connect to each IP for each addnode entry until at least one is successful per addnode entry
+            // (keeping in mind that addnode entries can have many IPs if fNameLookup)
+            {
+                LOCK(cs_vNodes);
+                for (list<vector<CService> >::iterator it = lservAddressesToAdd.begin(); it != lservAddressesToAdd.end(); )
+                {
+                    bool fConnected = false;
+                    BOOST_FOREACH(CNode* pnode, vNodes)
+                    {
+                        BOOST_FOREACH(CService& addrNode, *it)
+                            if (pnode->addr == addrNode) { fConnected = true; break; }
+                        if (fConnected)
+                            break;
+                    }
+                    if (fConnected)
+                        it = lservAddressesToAdd.erase(it);
+                    else
+                        ++it;
+                }
+            }
+
+            BOOST_FOREACH(vector<CService>& vserv, lservAddressesToAdd)
+            {
+                CSemaphoreGrant grant(*semOutbound);
+                OpenNetworkConnection(CAddress(vserv[i % vserv.size()]), &grant);
+                MilliSleep(500);
+                if (fShutdown)
+                    return;
             }
         }
-    }
-    while (true)
-    {
-        vector<vector<CService> > vservConnectAddresses = vservAddressesToAdd;
-        // Attempt to connect to each IP for each addnode entry until at least one is successful per addnode entry
-        // (keeping in mind that addnode entries can have many IPs if fNameLookup)
-        {
-            LOCK(cs_vNodes);
-            BOOST_FOREACH(CNode* pnode, vNodes)
-                for (vector<vector<CService> >::iterator it = vservConnectAddresses.begin(); it != vservConnectAddresses.end(); it++)
-                    BOOST_FOREACH(CService& addrNode, *(it))
-                        if (pnode->addr == addrNode)
-                        {
-                            it = vservConnectAddresses.erase(it);
-                            it--;
-                            break;
-                        }
-        }
-        BOOST_FOREACH(vector<CService>& vserv, vservConnectAddresses)
-        {
-            CSemaphoreGrant grant(*semOutbound);
-            OpenNetworkConnection(CAddress(*(vserv.begin())), &grant);
-            MilliSleep(500);
-            if (fShutdown)
-                return;
-        }
-        if (fShutdown)
-            return;
+
         vnThreadsRunning[THREAD_ADDEDCONNECTIONS]--;
-        MilliSleep(120000); // Retry every 2 minutes
+        // Retry every 2 minutes (in short steps so shutdown isn't held up)
+        for (int n = 0; n < 1200 && !fShutdown; n++)
+            MilliSleep(100);
         vnThreadsRunning[THREAD_ADDEDCONNECTIONS]++;
-        if (fShutdown)
-            return;
     }
 }
 
@@ -1701,19 +1832,136 @@ void ThreadMessageHandler(void* parg)
     printf("ThreadMessageHandler exited\n");
 }
 
+// Block sync
+//
+// Old Coppercoin asked only the first peer that connected for blocks and never
+// moved on, so a slow or stuck first peer stalled the whole download until a
+// restart. Now one "sync peer" is picked from all connected peers, the stall
+// watchdog in SendMessages asks again or moves to another peer when blocks stop
+// coming, and we switch as soon as the sync peer runs out of blocks while
+// someone else is clearly ahead.
+
+// Among peers of similar height, prefer one running at least our protocol
+// version, then the one we heard from most recently
+static int64_t NodeSyncScore(const CNode *pnode) {
+    int64_t nScore = pnode->nLastRecv;
+    if (pnode->nVersion >= PROTOCOL_VERSION)
+        nScore += (int64_t)1 << 40;   // outranks any difference in nLastRecv
+    return nScore;
+}
+
+bool IsSyncNode(const CNode* pnode) {
+    return pnode == pnodeSync;
+}
+
+int GetBestPeerHeight() {
+    int nBest = -1;
+    LOCK(cs_vNodes);
+    BOOST_FOREACH(CNode* pnode, vNodes)
+        if (pnode->fSuccessfullyConnected && !pnode->fDisconnect)
+            nBest = std::max(nBest, pnode->nKnownHeight);
+    return nBest;
+}
+
+void ReleaseSyncNode(CNode* pnode, int64_t nSeconds) {
+    pnode->nSyncAvoidUntil = GetTime() + nSeconds;
+    if (pnode == pnodeSync)
+        pnodeSync = NULL;   // ThreadMessageHandler picks a new one
+}
+
+// Can we download blocks from this peer at all?
+static bool CanSyncFrom(const CNode *pnode) {
+    return !pnode->fClient && !pnode->fOneShot &&
+           !pnode->fDisconnect && pnode->fSuccessfullyConnected &&
+           (pnode->nVersion < NOBLKS_VERSION_START || pnode->nVersion >= NOBLKS_VERSION_END);
+}
+
+// Pick the peer to download blocks from. Height comes first: only peers within
+// SYNC_HEIGHT_SLACK blocks of the tallest one are considered, so a new node
+// does not latch onto another node that is itself still syncing.
+void static StartSync(const vector<CNode*> &vNodes) {
+    // Peers we recently gave up on (see ReleaseSyncNode) are only used if
+    // there's no one else.
+    int64_t nNow = GetTime();
+    for (int nPass = 0; nPass < 2; nPass++) {
+        bool fUseAvoided = (nPass == 1);
+
+        int nMaxHeight = -1;
+        BOOST_FOREACH(CNode* pnode, vNodes) {
+            if (!CanSyncFrom(pnode) || (pnode->nSyncAvoidUntil > nNow) != fUseAvoided)
+                continue;
+            nMaxHeight = std::max(nMaxHeight, pnode->nKnownHeight);
+        }
+        if (nMaxHeight <= nBestHeight - 144)
+            continue;
+
+        CNode *pnodeNewSync = NULL;
+        int64_t nBestScore = 0;
+        BOOST_FOREACH(CNode* pnode, vNodes) {
+            if (!CanSyncFrom(pnode) || (pnode->nSyncAvoidUntil > nNow) != fUseAvoided)
+                continue;
+            if (pnode->nKnownHeight <= nBestHeight - 144 ||
+                pnode->nKnownHeight < nMaxHeight - SYNC_HEIGHT_SLACK)
+                continue;
+            int64_t nScore = NodeSyncScore(pnode);
+            if (pnodeNewSync == NULL || nScore > nBestScore) {
+                pnodeNewSync = pnode;
+                nBestScore = nScore;
+            }
+        }
+        if (pnodeNewSync) {
+            printf("sync: downloading from %s (%s) height %d, tallest peer %d, us %d\n",
+                   pnodeNewSync->addrName.c_str(), pnodeNewSync->strSubVer.c_str(),
+                   pnodeNewSync->nKnownHeight, nMaxHeight, nBestHeight);
+            pnodeNewSync->fStartSync = true;
+            pnodeSync = pnodeNewSync;
+            return;
+        }
+    }
+}
+
+// The sync peer has sent every block it is known to have. If another usable
+// peer is clearly further ahead, move to it now rather than waiting for the
+// stall watchdog (which takes a couple of minutes to give up).
+void static SwitchIfSyncNodeExhausted(const vector<CNode*> &vNodes) {
+    if (pnodeSync == NULL || pnodeSync->nKnownHeight > nBestHeight)
+        return;
+    int64_t nNow = GetTime();
+    BOOST_FOREACH(CNode* pnode, vNodes) {
+        if (pnode == pnodeSync || !CanSyncFrom(pnode) || pnode->nSyncAvoidUntil > nNow)
+            continue;
+        if (pnode->nKnownHeight >= nBestHeight + SYNC_SWITCH_MARGIN) {
+            printf("sync: %s has no more blocks for us (height %d), %s is at %d, switching\n",
+                   pnodeSync->addrName.c_str(), nBestHeight, pnode->addrName.c_str(), pnode->nKnownHeight);
+            ReleaseSyncNode(pnodeSync, 10 * 60);
+            StartSync(vNodes);
+            return;
+        }
+    }
+}
+
 void ThreadMessageHandler2(void* parg)
 {
     printf("ThreadMessageHandler started\n");
     SetThreadPriority(THREAD_PRIORITY_BELOW_NORMAL);
     while (!fShutdown)
     {
+        bool fHaveSyncNode = false;
         vector<CNode*> vNodesCopy;
         {
             LOCK(cs_vNodes);
             vNodesCopy = vNodes;
-            BOOST_FOREACH(CNode* pnode, vNodesCopy)
+            BOOST_FOREACH(CNode* pnode, vNodesCopy) {
                 pnode->AddRef();
+                if (pnode == pnodeSync)
+                    fHaveSyncNode = true;
+            }
         }
+
+        if (!fHaveSyncNode)
+            StartSync(vNodesCopy);
+        else
+            SwitchIfSyncNodeExhausted(vNodesCopy);
 
         // Poll the connected nodes for messages
         CNode* pnodeTrickle = NULL;

@@ -5,6 +5,7 @@
 #ifndef BITCOIN_MAIN_H
 #define BITCOIN_MAIN_H
 
+#include <atomic>
 #include "bignum.h"
 #include "sync.h"
 #include "net.h"
@@ -13,6 +14,8 @@
 #include "zerocoin/Zerocoin.h"
 
 #include <list>
+
+#include <boost/filesystem/path.hpp>
 
 class CWallet;
 class CBlock;
@@ -34,6 +37,9 @@ static const int LAST_POW_BLOCK = 800000;
 static const unsigned int MAX_BLOCK_SIZE = 1000000;
 /** The maximum size for mined blocks */
 static const unsigned int MAX_BLOCK_SIZE_GEN = MAX_BLOCK_SIZE/2;
+/** Start a new blkNNNN.dat file once the current one reaches this size (25 MiB).
+ *  Existing larger files keep working; only where new blocks go changes. */
+static const unsigned int MAX_BLOCKFILE_SIZE = 25 * 1024 * 1024;
 /** The maximum size for transactions we're willing to relay/mine **/
 static const unsigned int MAX_STANDARD_TX_SIZE = MAX_BLOCK_SIZE_GEN/5;
 /** The maximum allowed number of signature check operations in a block (network rule) */
@@ -44,6 +50,18 @@ static const unsigned int MAX_ORPHAN_TRANSACTIONS = MAX_BLOCK_SIZE/100;
 static const unsigned int MAX_INV_SZ = 50000;
 /** Fees smaller than this (in satoshi) are considered zero fee (for transaction creation) */
 static const int64_t MIN_TX_FEE = 10000;
+/** Default number of blocks announced per getblocks request (-blockbatchsize) */
+static const int DEFAULT_BLOCK_BATCH_SIZE = 500;
+/** Seconds without a new block (while a peer is ahead of us) before sync asks again */
+static const int64_t SYNC_STALL_TIMEOUT = 60;
+/** Stall watchdog firings in a row (at the same height) before switching to another sync peer */
+static const int SYNC_STALLS_BEFORE_SWITCH = 2;
+/** Peers within this many blocks of the tallest peer all count as tall enough to sync from */
+static const int SYNC_HEIGHT_SLACK = 1000;
+/** Move off a sync peer that has run out of blocks when another peer is at least this far ahead */
+static const int SYNC_SWITCH_MARGIN = 100;
+/** Default -dbcache for the block index (txleveldb) database, in megabytes */
+static const int64_t DEFAULT_TXDB_CACHE_MB = 100;
 /** Fees smaller than this (in satoshi) are considered zero fee (for relaying) */
 static const int64_t MIN_RELAY_TX_FEE = MIN_TX_FEE;
 /** No amount larger than this (in satoshi) is valid */
@@ -72,6 +90,10 @@ extern unsigned int nStakeMaxAge;
 extern unsigned int nNodeLifespan;
 extern int nCoinbaseMaturity;
 extern int nBestHeight;
+// Copies of the tip's height and time the GUI can read at any moment without
+// waiting for cs_main (which block processing holds almost constantly while syncing)
+extern std::atomic<int> nBestHeightUI;
+extern std::atomic<int64_t> nBestTimeUI;
 extern uint256 nBestChainTrust;
 extern uint256 nBestInvalidTrust;
 extern uint256 hashBestChain;
@@ -109,6 +131,10 @@ void SyncWithWallets(const CTransaction& tx, const CBlock* pblock = NULL, bool f
 bool ProcessBlock(CNode* pfrom, CBlock* pblock);
 bool CheckDiskSpace(uint64_t nAdditionalBytes=0);
 FILE* OpenBlockFile(unsigned int nFile, unsigned int nBlockPos, const char* pszMode="rb");
+boost::filesystem::path GetBlockFileDir();
+boost::filesystem::path BlockFilePath(unsigned int nFile);
+/** Create the block file directory and move block files from older versions into it */
+bool MigrateBlockFiles(std::string& strError);
 FILE* AppendBlockFile(unsigned int& nFileRet);
 bool LoadBlockIndex(bool fAllowNew=true);
 void PrintBlockTree();
@@ -815,7 +841,7 @@ public:
  * in the block is a special one that creates a new coin owned by the creator
  * of the block.
  *
- * Blocks are appended to blk0001.dat files on disk.  Their location on disk
+ * Blocks are appended to chain/blk0001.dat files on disk.  Their location on disk
  * is indexed by CBlockIndex objects in memory.
  */
 class CBlock

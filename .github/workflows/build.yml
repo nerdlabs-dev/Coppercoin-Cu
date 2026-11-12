@@ -64,11 +64,11 @@ jobs:
           update: true
           install: >-
             make
+            git
             zip
             mingw-w64-ucrt-x86_64-toolchain
             mingw-w64-ucrt-x86_64-boost
             mingw-w64-ucrt-x86_64-openssl
-            mingw-w64-ucrt-x86_64-db
             mingw-w64-ucrt-x86_64-miniupnpc
             mingw-w64-ucrt-x86_64-qrencode
             mingw-w64-ucrt-x86_64-qt5-base
@@ -79,14 +79,32 @@ jobs:
           ls /ucrt64/lib | grep -E "boost_(thread|filesystem|program_options|chrono)|db_cxx|miniupnpc" || true
           ls /ucrt64/bin | grep -i qmake || true
 
+      # Berkeley DB 5.3 (Sleepycat license), the same version the Linux builds
+      # use, so wallets are interchangeable. MSYS2 only ships 6.x (AGPL, DLL).
+      - name: Build static Berkeley DB 5.3.28
+        run: |
+          T="$(cygpath -u "$RUNNER_TEMP")"
+          git clone --depth 1 --branch v5.3.28 https://github.com/berkeleydb/libdb.git "$T/bdb"
+          cd "$T/bdb"
+          # Rename a function that clashes with a GCC built-in
+          sed -i 's/__atomic_compare_exchange/__atomic_compare_exchange_db/g' src/dbinc/atomic.h
+          cd build_unix
+          ../dist/configure --host=x86_64-w64-mingw32 --build=x86_64-w64-mingw32 \
+            --enable-mingw --enable-cxx --disable-shared --disable-replication \
+            --prefix="$T/bdb-install" CFLAGS="-O2 -std=gnu17"
+          make -j"$(nproc)" libdb.a libdb_cxx.a
+          make install_lib install_include
+
       - name: Build coppercoin-qt
         run: |
+          BDB="$(cygpath -m "$RUNNER_TEMP/bdb-install")"
           QMAKE=$(command -v qmake-qt5 || command -v qmake)
           LRELEASE=$(command -v lrelease-qt5 || command -v lrelease)
           "$QMAKE" -spec win32-g++ "CONFIG+=release" \
             QMAKE_LRELEASE="$LRELEASE" \
             USE_QRCODE=1 USE_UPNP=1 \
             BOOST_LIB_SUFFIX=-mt BOOST_THREAD_LIB_SUFFIX=-mt \
+            "BDB_INCLUDE_PATH=$BDB/include" "BDB_LIB_PATH=$BDB/lib" \
             Coppercoin-qt.pro 2>&1 | tee qmake.log
           test "${PIPESTATUS[0]}" -eq 0
           mingw32-make -k -j2 -f Makefile.Release 2>&1 | tee build-qt.log

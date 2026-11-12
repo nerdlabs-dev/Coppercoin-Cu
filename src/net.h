@@ -43,6 +43,22 @@ void StartNode(void* parg);
 bool StopNode();
 void SocketSendData(CNode *pnode);
 
+/** Seconds between latency-measuring pings to each peer */
+static const int PING_INTERVAL = 2 * 60;
+
+/** Block sync: the one peer we download the chain from (see StartSync in net.cpp) */
+bool IsSyncNode(const CNode* pnode);
+/** Stop syncing from this peer and don't pick it again for nSeconds */
+void ReleaseSyncNode(CNode* pnode, int64_t nSeconds);
+/** Highest block height any connected peer is known to have (-1 if none) */
+int GetBestPeerHeight();
+/** Outbound peers tell us the address they see us at; adopt it once enough agree */
+bool LearnLocalFromPeer(CNode *pnode);
+
+/** Nodes added with -addnode or the addnode RPC */
+extern std::vector<std::string> vAddedNodes;
+extern CCriticalSection cs_vAddedNodes;
+
 enum
 {
     LOCAL_NONE,   // unknown
@@ -51,6 +67,7 @@ enum
     LOCAL_UPNP,   // address reported by UPnP
     LOCAL_IRC,    // address reported by IRC (deprecated)
     LOCAL_HTTP,   // address reported by whatismyip.com and similar
+    LOCAL_PEER,   // address that several outbound peers agree they see us at
     LOCAL_MANUAL, // address explicitly specified (-externalip=)
 
     LOCAL_MAX
@@ -141,7 +158,14 @@ public:
     std::string strSubVer;
     bool fInbound;
     int nStartingHeight;
+    int nKnownHeight;
+    bool fSyncNode;
+    uint64_t nSendBytes;
+    uint64_t nRecvBytes;
     int nMisbehavior;
+    double dPingTime;
+    double dPingWait;
+    std::string addrLocal;
 };
 
 
@@ -207,6 +231,8 @@ public:
     int64_t nLastRecv;
     int64_t nLastSendEmpty;
     int64_t nTimeConnected;
+    uint64_t nSendBytes;        // bytes sent to / received from this peer
+    uint64_t nRecvBytes;
     CAddress addr;
     std::string addrName;
     CService addrLocal;
@@ -228,13 +254,31 @@ protected:
     static CCriticalSection cs_setBanned;
     int nMisbehavior;
 
+    // Network traffic totals over all peers since startup
+    static CCriticalSection cs_totalBytes;
+    static uint64_t nTotalBytesRecv;
+    static uint64_t nTotalBytesSent;
+
 public:
     std::map<uint256, CRequestTracker> mapRequests;
     CCriticalSection cs_mapRequests;
     uint256 hashContinue;
     CBlockIndex* pindexLastGetBlocksBegin;
     uint256 hashLastGetBlocksEnd;
+    int64_t nLastGetBlocksTime; // when we last sent this peer a getblocks request
+    int nSyncStalls;            // stall watchdog firings in a row at the same height
+    int nSyncStallHeight;       // our height at the last firing
+    int64_t nSyncAvoidUntil;    // don't pick this peer to sync from before this time
     int nStartingHeight;
+    int nKnownHeight;           // highest block height this peer is known to have:
+                                // its starting height, raised by blocks it sends or announces
+    bool fStartSync;            // picked as sync peer; SendMessages sends the first getblocks
+
+    // Ping time measurement
+    uint64_t nPingNonceSent;    // nonce of the ping in flight, 0 if none
+    int64_t nPingUsecStart;     // when the last ping was sent
+    int64_t nPingUsecTime;      // last measured round trip
+    bool fPingQueued;           // ping requested by the ping RPC
 
     // flood relay
     std::vector<CAddress> vAddrToSend;
@@ -258,6 +302,8 @@ public:
         nLastRecv = 0;
         nLastSendEmpty = GetTime();
         nTimeConnected = GetTime();
+        nSendBytes = 0;
+        nRecvBytes = 0;
         addr = addrIn;
         addrName = addrNameIn == "" ? addr.ToStringIPPort() : addrNameIn;
         nVersion = 0;
@@ -274,7 +320,17 @@ public:
         hashContinue = 0;
         pindexLastGetBlocksBegin = 0;
         hashLastGetBlocksEnd = 0;
+        nLastGetBlocksTime = 0;
+        nSyncStalls = 0;
+        nSyncStallHeight = -1;
+        nSyncAvoidUntil = 0;
         nStartingHeight = -1;
+        nKnownHeight = -1;
+        fStartSync = false;
+        nPingNonceSent = 0;
+        nPingUsecStart = 0;
+        nPingUsecTime = 0;
+        fPingQueued = false;
         fGetAddr = false;
         nMisbehavior = 0;
         hashCheckpointKnown = 0;
@@ -682,6 +738,11 @@ public:
     static bool IsBanned(CNetAddr ip);
     bool Misbehaving(int howmuch); // 1 == a little, 100 == a lot
     void copyStats(CNodeStats &stats);
+
+    static void RecordBytesRecv(uint64_t bytes);
+    static void RecordBytesSent(uint64_t bytes);
+    static uint64_t GetTotalBytesRecv();
+    static uint64_t GetTotalBytesSent();
 };
 
 inline void RelayInventory(const CInv& inv)

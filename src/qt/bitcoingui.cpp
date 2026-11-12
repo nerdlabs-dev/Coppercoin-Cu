@@ -26,6 +26,10 @@
 #include "guiutil.h"
 #include "rpcconsole.h"
 #include "wallet.h"
+#include "main.h"
+#include "net.h"
+#include "util.h"
+#include <algorithm>
 
 #ifdef Q_OS_MAC
 #include "macdockiconhandler.h"
@@ -184,6 +188,13 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
 
     statusBar()->addWidget(progressBarLabel);
     statusBar()->addWidget(progressBar);
+
+    // Time-left estimate while syncing. Each tick reads two numbers without
+    // waiting on block processing, so it costs next to nothing.
+    syncTargetHeight = -1;
+    syncEstimateTimer = new QTimer(this);
+    connect(syncEstimateTimer, SIGNAL(timeout()), this, SLOT(updateSyncEstimate()));
+    syncEstimateTimer->start(SYNC_ESTIMATE_DELAY);
     statusBar()->addPermanentWidget(frameBlocks);
 
     syncIconMovie = new QMovie(":/movies/update_spinner", "mng", this);
@@ -197,6 +208,8 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
 
     rpcConsole = new RPCConsole(this);
     connect(openRPCConsoleAction, SIGNAL(triggered()), rpcConsole, SLOT(show()));
+    connect(openPeersAction, SIGNAL(triggered()), rpcConsole, SLOT(showPeers()));
+    connect(openTrafficAction, SIGNAL(triggered()), rpcConsole, SLOT(showTraffic()));
 
     // Clicking on "Verify Message" in the address book sends you to the verify message tab
     connect(addressBookPage, SIGNAL(verifyMessage(QString)), this, SLOT(gotoVerifyMessageTab(QString)));
@@ -292,6 +305,10 @@ void BitcoinGUI::createActions()
     exportAction->setToolTip(tr("Export the data in the current tab to a file"));
     openRPCConsoleAction = new QAction(QIcon(":/icons/debugwindow"), tr("&Debug window"), this);
     openRPCConsoleAction->setToolTip(tr("Open debugging and diagnostic console"));
+    openPeersAction = new QAction(QIcon(":/icons/connect_4"), tr("&Peers"), this);
+    openPeersAction->setToolTip(tr("Show the connected peers: address, version, height, ping and traffic"));
+    openTrafficAction = new QAction(QIcon(":/icons/debugwindow"), tr("&Network Traffic"), this);
+    openTrafficAction->setToolTip(tr("Show a live graph of network traffic"));
 
     connect(quitAction, SIGNAL(triggered()), qApp, SLOT(quit()));
     connect(aboutAction, SIGNAL(triggered()), this, SLOT(aboutClicked()));
@@ -331,6 +348,9 @@ void BitcoinGUI::createMenuBar()
     settings->addAction(changePassphraseAction);
     settings->addAction(unlockWalletAction);
     settings->addAction(lockWalletAction);
+    settings->addSeparator();
+    settings->addAction(openPeersAction);
+    settings->addAction(openTrafficAction);
     settings->addSeparator();
     settings->addAction(optionsAction);
 
@@ -515,6 +535,73 @@ void BitcoinGUI::setNumConnections(int count)
     labelConnectionsIcon->setToolTip(tr("%n active connection(s) to Coppercoin network", "", count));
 }
 
+// Text for a duration, rounded to what's useful for a rough estimate
+static QString FormatTimeLeft(qint64 nSecs)
+{
+    if (nSecs < 60)
+        return QObject::tr("under a minute");
+    if (nSecs < 60 * 60)
+        return QObject::tr("%n min", "", (int)((nSecs + 30) / 60));
+    if (nSecs < 48 * 60 * 60)
+    {
+        int nMins = (int)((nSecs + 30) / 60);
+        return QObject::tr("%1 h %2 min").arg(nMins / 60).arg(nMins % 60);
+    }
+    int nHours = (int)((nSecs + 1800) / 3600);
+    return QObject::tr("%1 days %2 h").arg(nHours / 24).arg(nHours % 24);
+}
+
+void BitcoinGUI::updateSyncEstimate()
+{
+    int nHeight = nBestHeightUI;
+    qint64 nNowMs = GetTimeMillis();
+
+    // Only while catching up (tip more than 90 minutes old)
+    if (nHeight < 0 || nBestTimeUI >= GetTime() - 90 * 60)
+    {
+        syncSamples.clear();
+        syncEstimateText.clear();
+        syncRateText.clear();
+        syncTargetHeight = -1;
+        return;
+    }
+
+    syncTargetHeight = GetBestPeerHeight();
+
+    // Average the download rate over the last few minutes so short stalls or
+    // bursts don't make the estimate jump around
+    syncSamples.push_back(std::make_pair(nNowMs, nHeight));
+    while (syncSamples.size() > 1 && nNowMs - syncSamples.front().first > SYNC_ESTIMATE_WINDOW_MS)
+        syncSamples.pop_front();
+
+    qint64 nSpanMs = syncSamples.back().first - syncSamples.front().first;
+    int nGained = syncSamples.back().second - syncSamples.front().second;
+    int nLeft = syncTargetHeight - nHeight;
+
+    if (syncTargetHeight <= nHeight)
+    {
+        syncEstimateText.clear();
+        syncRateText.clear();
+    }
+    else if (nSpanMs < 30 * 1000)
+    {
+        syncEstimateText = tr("estimating time left...");
+        syncRateText = tr("%n block(s) to go.", "", nLeft);
+    }
+    else if (nGained <= 0)
+    {
+        syncEstimateText = tr("waiting for blocks...");
+        syncRateText = tr("No blocks received in the last %n minute(s); %1 to go.", "", (int)(nSpanMs / 60000)).arg(nLeft);
+    }
+    else
+    {
+        double dRate = nGained * 1000.0 / nSpanMs;   // blocks per second
+        syncEstimateText = tr("about %1 left").arg(FormatTimeLeft((qint64)(nLeft / dRate)));
+        syncRateText = tr("Downloading %1 blocks a second, %2 blocks to go (highest peer: %3).")
+                       .arg(QString::number(dRate, 'f', dRate < 10 ? 1 : 0)).arg(nLeft).arg(syncTargetHeight);
+    }
+}
+
 void BitcoinGUI::setNumBlocks(int count, int nTotalBlocks)
 {
     // don't show / hide progress bar and its label if we have no connection to the network
@@ -538,13 +625,18 @@ void BitcoinGUI::setNumBlocks(int count, int nTotalBlocks)
         {
             progressBarLabel->setText(tr("Synchronizing with network..."));
             progressBarLabel->setVisible(true);
-            progressBar->setFormat(tr("~%n block(s) remaining", "", nRemainingBlocks));
+            if (!syncEstimateText.isEmpty())
+                progressBar->setFormat(tr("~%n block(s) remaining", "", nRemainingBlocks) + ", " + syncEstimateText);
+            else
+                progressBar->setFormat(tr("~%n block(s) remaining", "", nRemainingBlocks));
             progressBar->setMaximum(nTotalBlocks);
             progressBar->setValue(count);
             progressBar->setVisible(true);
         }
 
         tooltip = tr("Downloaded %1 of %2 blocks of transaction history (%3% done).").arg(count).arg(nTotalBlocks).arg(nPercentageDone, 0, 'f', 2);
+        if (!syncRateText.isEmpty())
+            tooltip += QString("<br>") + syncRateText;
     }
     else
     {
