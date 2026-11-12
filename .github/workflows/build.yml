@@ -38,8 +38,8 @@ jobs:
       - name: Report compiler errors
         if: failure()
         run: |
-          { cat build-*.log 2>/dev/null | grep -E ": (fatal )?error:|undefined reference|No such file|cannot find|Error [0-9]" | head -50; \
-            tail -n 15 qmake.log build-qt.log build-daemon.log 2>/dev/null; } | \
+          { cat build-*.log 2>/dev/null | grep -v -i "warning" | grep -i -E "error|undefined reference|No such file|cannot find|not found|multiple definition" | grep -v -E "runtime_error|bignum_error|key_error|_error\(|error_code" | head -60; \
+            grep -B4 -E "\*\*\* \[" build-qt.log 2>/dev/null | grep -v "warning" | head -40; } | \
             while IFS= read -r l; do echo "::error::${l//%/%25}"; done || true
 
       - uses: actions/upload-artifact@v5
@@ -95,8 +95,8 @@ jobs:
       - name: Report compiler errors
         if: failure()
         run: |
-          { cat build-*.log 2>/dev/null | grep -E ": (fatal )?error:|undefined reference|No such file|cannot find|Error [0-9]" | head -50; \
-            tail -n 15 qmake.log build-qt.log build-daemon.log 2>/dev/null; } | \
+          { cat build-*.log 2>/dev/null | grep -v -i "warning" | grep -i -E "error|undefined reference|No such file|cannot find|not found|multiple definition" | grep -v -E "runtime_error|bignum_error|key_error|_error\(|error_code" | head -60; \
+            grep -B4 -E "\*\*\* \[" build-qt.log 2>/dev/null | grep -v "warning" | head -40; } | \
             while IFS= read -r l; do echo "::error::${l//%/%25}"; done || true
 
       - name: Package
