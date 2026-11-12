@@ -42,6 +42,7 @@ bool BindListenPort(const CService &bindAddr, std::string& strError=REF(std::str
 void StartNode(void* parg);
 bool StopNode();
 void SocketSendData(CNode *pnode);
+bool OpenNetworkConnection(const CAddress& addrConnect, CSemaphoreGrant *grantOutbound = NULL, const char *strDest = NULL, bool fOneShot = false);
 
 /** Seconds between latency-measuring pings to each peer */
 static const int PING_INTERVAL = 2 * 60;
