@@ -89,7 +89,7 @@ jobs:
             BOOST_LIB_SUFFIX=-mt BOOST_THREAD_LIB_SUFFIX=-mt \
             Coppercoin-qt.pro 2>&1 | tee qmake.log
           test "${PIPESTATUS[0]}" -eq 0
-          mingw32-make -k -j"$(nproc)" -f Makefile.Release 2>&1 | tee build-qt.log
+          mingw32-make -k -j2 -f Makefile.Release 2>&1 | tee build-qt.log
           test "${PIPESTATUS[0]}" -eq 0
 
       - name: Report compiler errors
